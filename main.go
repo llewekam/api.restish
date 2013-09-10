@@ -31,7 +31,7 @@ func Request(resource *restish.Resource, httpAction string) (responseResource *r
 		action = restish.ActionDelete
 	}
 
-	fmt.Printf("Dispatching %s\n", resource.Self)
+	fmt.Printf("Dispatching %s\n", resource.Self().Href)
 	dispatch, error := restish.GetDispatch(resource)
 	if nil == error {
 		responseResource, status = dispatch.Request(resource, action)
