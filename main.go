@@ -31,7 +31,7 @@ func Request(resource *restish.Resource, httpAction string) (responseResource *r
 		action = restish.ActionDelete
 	}
 
-	fmt.Printf("Dispatching %s\n", resource.Self().Href)
+	fmt.Printf("Dispatching %s\n", resource.Self.Href)
 	dispatch, error := restish.GetDispatch(resource)
 	if nil == error {
 		responseResource, status = dispatch.Request(resource, action)
@@ -51,28 +51,29 @@ func handler(writer http.ResponseWriter, request *http.Request) {
 		}
 	}()
 
-	fmt.Println("Request Received")
-	resource := restish.NewResource(request.RequestURI)
-	responseResource, status := Request(resource, request.Method)
-
+	var status restish.StatusCode
 	renderer := restish.NewRenderer()
-	response := renderer.Render(responseResource)
+
+	fmt.Println("Request Received")
+
+	resource := restish.RequestResource(request)
+	resource, status = Request(resource, request.Method)
+
+	response := restish.ResourceResponse(resource)
+	responseString := renderer.Render(response)
 
 	header := writer.Header()
 	header.Add("Content-type", renderer.MimeType())
 	writer.WriteHeader(status.Code)
 
-	fmt.Fprintf(writer, "%s", response)
+	fmt.Fprintf(writer, "%s", responseString)
 }
 
 func main() {
-	errorDispatch := restish.NewDispatch(&Error{restish.ControllerAbstract{}})
-	restish.SetDefaultDispatch(errorDispatch)
+	restish.AddDefaultController(&Error{restish.ControllerAbstract{}})
+	restish.AddController(&Index{restish.ControllerAbstract{}}, "/")
 
-	index := restish.NewDispatch(&Index{restish.ControllerAbstract{}})
-	restish.AddRoute(index, "/")
-
-	fmt.Println("Dispatchers initialised")
+	fmt.Println("Controllers initialised")
 	http.HandleFunc("/", handler)
 	http.ListenAndServe(":8080", nil)
 }
