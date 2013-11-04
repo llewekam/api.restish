@@ -11,27 +11,11 @@ import (
 // GET = read
 // PUT = update
 // DELETE = delete
-func Request(resource *restish.Resource, httpAction string) (responseResource *restish.Resource, status restish.StatusCode) {
-	var action string
-
+func Request(resource *restish.Resource, action string) (responseResource *restish.Resource, status restish.StatusCode) {
 	responseResource = resource
 	status = restish.StatusNotFound // The default response if the appropriate dispatcher cannot be found
 
-	switch {
-	case "POST" == httpAction:
-		action = restish.ActionCreate
-
-	case "GET" == httpAction:
-		action = restish.ActionRead
-
-	case "PUT" == httpAction:
-		action = restish.ActionUpdate
-
-	case "DELETE" == httpAction:
-		action = restish.ActionDelete
-	}
-
-	fmt.Printf("Dispatching %s\n", resource.Self.Href)
+	fmt.Printf("Dispatching %s %s\n", action, resource.Self.Href)
 	dispatch, error := restish.GetDispatch(resource)
 	if nil == error {
 		responseResource, status = dispatch.Request(resource, action)
@@ -43,32 +27,34 @@ func Request(resource *restish.Resource, httpAction string) (responseResource *r
 	return
 }
 
+// HTTP handler function. Looks after all requests.
 func handler(writer http.ResponseWriter, request *http.Request) {
 	defer func() {
 		if err := recover(); nil != err {
 			fmt.Println(err)
-			writer.WriteHeader(500)
+			writer.WriteHeader(restish.StatusServerError.Code)
 		}
 	}()
 
 	var status restish.StatusCode
-	renderer := restish.NewRenderer()
 
 	fmt.Println("Request Received")
 
 	resource := restish.RequestResource(request)
+
 	resource, status = Request(resource, request.Method)
+	resource.AddHeader("Access-Control-Allow-Origin", "http://localhost:3000")
+	resource.AddHeader("Access-Control-Allow-Headers", "X-Requested-With")
 
-	response := restish.ResourceResponse(resource)
-	responseString := renderer.Render(response)
-
+	renderer := restish.NewRenderer()
 	header := writer.Header()
-	header.Add("Content-type", renderer.MimeType())
-	writer.WriteHeader(status.Code)
+	response := restish.ResourceResponse(resource, renderer, header)
 
-	fmt.Fprintf(writer, "%s", responseString)
+	writer.WriteHeader(status.Code)
+	fmt.Fprintf(writer, "%s", response)
 }
 
+//
 func main() {
 	restish.AddDefaultController(&Error{restish.ControllerAbstract{}})
 	restish.AddController(&Index{restish.ControllerAbstract{}}, "/")

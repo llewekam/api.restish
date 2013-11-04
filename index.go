@@ -2,7 +2,6 @@
 package main
 
 import (
-	"fmt"
 	"github.com/llewekam/restish"
 )
 
@@ -13,10 +12,21 @@ type Index struct {
 
 // Index Resource GET handler
 func (index *Index) Read(resource *restish.Resource) (*restish.Resource, restish.StatusCode) {
-	fmt.Println("In Index Read")
+	resource.Type = "urn:com.restish.page"
 	resource.Properties = map[string]string{
 		"title": "Hello",
 	}
 
 	return resource, restish.StatusOk
+}
+
+// Resource Options for the requested action
+func (_ *Index) Options(resource *restish.Resource, action string) (*restish.Resource, restish.StatusCode) {
+	switch {
+	case restish.ActionRead == action:
+		return resource, restish.StatusOk
+
+	}
+
+	return resource, restish.StatusUnauthorized
 }
